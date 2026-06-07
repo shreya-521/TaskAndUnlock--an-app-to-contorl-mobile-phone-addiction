@@ -11,7 +11,7 @@ import android.util.Log
 class AppBlockerAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var activePackageName: String? = null
-    private var startTime: Long = 0
+    private var startTime: Long = 0L
     private var trackingRunnable: Runnable? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
