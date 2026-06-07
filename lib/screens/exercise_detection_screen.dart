@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -6,6 +7,7 @@ import '../services/exercise_detection_service.dart';
 import '../services/notification_service.dart';
 import '../models/exercise_model.dart';
 import '../providers/exercise_provider.dart';
+import '../providers/timer_provider.dart';
 
 class ExerciseDetectionScreen extends StatefulWidget {
   final ExerciseType exerciseType;
@@ -27,6 +29,8 @@ class ExerciseDetectionScreen extends StatefulWidget {
 }
 
 class _ExerciseDetectionScreenState extends State<ExerciseDetectionScreen> {
+  static const _platform = MethodChannel('com.taskandunlock.app/blocker');
+
   late CameraController _cameraController;
   late ExerciseDetectionService _detectionService;
   late NotificationService _notificationService;
@@ -127,6 +131,7 @@ class _ExerciseDetectionScreenState extends State<ExerciseDetectionScreen> {
 
       if (mounted) {
         await context.read<ExerciseProvider>().addExercise(exercise);
+        await context.read<TimerProvider>().unlockApp(widget.appId, 5);
       }
 
       // Show success
@@ -178,21 +183,30 @@ class _ExerciseDetectionScreenState extends State<ExerciseDetectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.exerciseType.toString().split('.').last.toUpperCase()} Detection'),
-      ),
-      body: Stack(
-        children: [
-          // Camera preview
-          if (_isCameraInitialized)
-            CameraPreview(_cameraController)
-          else
-            const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF8B0000),
+    return WillPopScope(
+      onWillPop: () async {
+        try {
+          await _platform.invokeMethod('goToHomeScreen');
+        } catch (e) {
+          print('Error redirecting to home: $e');
+        }
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('${widget.exerciseType.toString().split('.').last.toUpperCase()} Detection'),
+        ),
+        body: Stack(
+          children: [
+            // Camera preview
+            if (_isCameraInitialized)
+              CameraPreview(_cameraController)
+            else
+              const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF8B0000),
+                ),
               ),
-            ),
 
           // Overlay with rep counter
           Positioned(
@@ -258,7 +272,16 @@ class _ExerciseDetectionScreenState extends State<ExerciseDetectionScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[700],
                         ),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () async {
+                          try {
+                            await _platform.invokeMethod('goToHomeScreen');
+                          } catch (e) {
+                            print('Error redirecting to home screen: $e');
+                          }
+                          if (mounted) {
+                            Navigator.pop(context);
+                          }
+                        },
                         icon: const Icon(Icons.close),
                         label: const Text('Cancel'),
                       ),

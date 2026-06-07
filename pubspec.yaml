@@ -20,12 +20,12 @@ dependencies:
   flutter_local_notifications: ^16.1.0
   fl_chart: ^0.64.0
   workmanager: ^0.5.2
-  app_usage: ^1.1.0
+  app_usage: ^4.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_linter: ^3.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true

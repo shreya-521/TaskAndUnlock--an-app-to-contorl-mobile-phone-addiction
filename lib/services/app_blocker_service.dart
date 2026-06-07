@@ -71,6 +71,10 @@ class AppBlockerService {
       }
 
       await _db.addOrUpdateDailyUsage(dailyUsage);
+
+      // Sync to SharedPreferences for native service
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('usage_$packageName', dailyUsage.totalMinutes);
     } catch (e) {
       print('Error updating app usage: $e');
     }
@@ -84,6 +88,14 @@ class AppBlockerService {
       await prefs.setString(
         _unlockTimeKey + appId.toString(),
         unlockedUntil.toIso8601String(),
+      );
+
+      // Get packageName to sync to SharedPreferences for native service
+      final apps = await _db.getAllBlockedApps();
+      final app = apps.firstWhere((a) => a.id == appId);
+      await prefs.setInt(
+        'unlock_until_ms_${app.packageName}',
+        unlockedUntil.millisecondsSinceEpoch,
       );
 
       // Update unlock count
@@ -149,10 +161,12 @@ class AppBlockerService {
       final lastReset = prefs.getString(_lastResetDateKey);
 
       if (lastReset != today) {
-        // Clear all unlock times
+        // Clear all unlock times and usages
         final apps = await _db.getAllBlockedApps();
         for (var app in apps) {
           await prefs.remove(_unlockTimeKey + app.id.toString());
+          await prefs.remove('unlock_until_ms_${app.packageName}');
+          await prefs.remove('usage_${app.packageName}');
         }
 
         // Update last reset date
@@ -161,6 +175,42 @@ class AppBlockerService {
       }
     } catch (e) {
       print('Error performing daily reset: $e');
+    }
+  }
+
+  /// Synchronize SQLite data with SharedPreferences for native background accessibility service
+  Future<void> syncBlockedAppsToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final apps = await _db.getAllBlockedApps();
+      final today = _getFormattedDate(DateTime.now());
+
+      for (var app in apps) {
+        final pkg = app.packageName;
+        // Block state & limit
+        await prefs.setBool('blocked_package_$pkg', app.isActive);
+        await prefs.setInt('limit_$pkg', app.dailyLimitMinutes);
+
+        // Daily usage
+        final usage = await _db.getDailyUsage(app.id!, today);
+        await prefs.setInt('usage_$pkg', usage?.totalMinutes ?? 0);
+
+        // Unlock status
+        final unlockTimeStr = prefs.getString(_unlockTimeKey + app.id.toString());
+        if (unlockTimeStr != null) {
+          final unlockedUntil = DateTime.parse(unlockTimeStr);
+          if (DateTime.now().isBefore(unlockedUntil)) {
+            await prefs.setInt('unlock_until_ms_$pkg', unlockedUntil.millisecondsSinceEpoch);
+          } else {
+            await prefs.remove('unlock_until_ms_$pkg');
+          }
+        } else {
+          await prefs.remove('unlock_until_ms_$pkg');
+        }
+      }
+      print('Synchronized ${apps.length} apps with SharedPreferences');
+    } catch (e) {
+      print('Error syncing blocked apps: $e');
     }
   }
 
