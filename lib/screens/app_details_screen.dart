@@ -113,9 +113,7 @@ class _AppDetailsScreenState extends State<AppDetailsScreen> {
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.solid,
-                      borderWidth: 0.5,
-                      borderColor: statusColor,
+                      border: Border.all(color: statusColor, width: 0.5),
                     ),
                     child: Text(
                       statusText,

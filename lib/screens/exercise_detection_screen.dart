@@ -302,6 +302,7 @@ class _ExerciseDetectionScreenState extends State<ExerciseDetectionScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
