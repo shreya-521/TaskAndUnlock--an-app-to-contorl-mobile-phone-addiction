@@ -20,21 +20,29 @@ subprojects {
 }
 
 subprojects {
-    afterEvaluate {
-        val android = extensions.findByName("android")
+    fun configureAndroidNamespace(proj: Project) {
+        val android = proj.extensions.findByName("android")
         if (android != null) {
             try {
                 val getNamespaceMethod = android.javaClass.getMethod("getNamespace")
                 val namespace = getNamespaceMethod.invoke(android)
                 if (namespace == null) {
                     val setNamespaceMethod = android.javaClass.getMethod("setNamespace", String::class.java)
-                    val fallbackNamespace = "com.taskandunlock." + project.name.replace(":", "_").replace("-", "_")
+                    val fallbackNamespace = "com.taskandunlock." + proj.name.replace(":", "_").replace("-", "_")
                     setNamespaceMethod.invoke(android, fallbackNamespace)
-                    logger.quiet("Dynamically injected namespace for subproject ${project.name} -> $fallbackNamespace")
+                    proj.logger.quiet("Dynamically injected namespace for subproject ${proj.name} -> $fallbackNamespace")
                 }
             } catch (e: Exception) {
-                // Ignore if getNamespace/setNamespace does not exist on older AGP versions
+                // Ignore if getNamespace/setNamespace does not exist
             }
+        }
+    }
+
+    if (state.executed) {
+        configureAndroidNamespace(this)
+    } else {
+        afterEvaluate {
+            configureAndroidNamespace(this)
         }
     }
 }
